@@ -53,13 +53,23 @@ void CreateCorpusFile(DWORD EscapeCode, DWORD RequiredSize, const char* DataFill
 		return;
 	}
 
+	const unsigned char header[] = {
+		0x41, 0x44, 0x56, 0x4e, 0x02, 0x00, 0x01, 0x00, 0x4c, 0x06, 0x00, 0x00,
+		0x2a, 0x2a, 0x56, 0x4e
+	};
+
+	*(DWORD*)(header + 8) = RequiredSize;
+
+	CorpusFile.write(reinterpret_cast<const char*>(header), sizeof(header));
+
+
 	// Write the escape code
 	//
 	CorpusFile.write(reinterpret_cast<const char*>(&EscapeCode), sizeof(DWORD));
 
 	// Write the rest of the data as 0xff
 	//
-	for (DWORD i = 0; i < RequiredSize - 0x14; i++)
+	for (size_t i = 0; i < RequiredSize - (sizeof header + sizeof DWORD); i++)
 	{
 		CorpusFile.write(DataFill, 1);
 	}
@@ -72,7 +82,7 @@ void CreateCorpusFile(DWORD EscapeCode, DWORD RequiredSize, const char* DataFill
 
 void ProcessEscapeConfig(EscapeSpecificConfig* pConfig)
 {
-	if(!pConfig)
+	if (!pConfig)
 	{
 		return;
 	}
@@ -81,11 +91,11 @@ void ProcessEscapeConfig(EscapeSpecificConfig* pConfig)
 	{
 		PrintLog("----------> Escape Code: [0x%lx] Required Size [0x%lx], Required Admin (%s), Validator Offset (%llx)",
 			pConfig->EscapeCode,
-			pConfig->RequiredSize, 
+			pConfig->RequiredSize,
 			pConfig->RequireAdmin ? "Yes" : "No",
 			pConfig->fnValidator ? ((UINT_PTR)pConfig->fnValidator - (UINT_PTR)Global::hDriverModule) : 0);
 
-		if(pConfig->RequireAdmin == false && pConfig->RequiredSize >= 0x10)
+		if (pConfig->RequireAdmin == false && pConfig->RequiredSize >= 0x10)
 		{
 			CreateCorpusFile(pConfig->EscapeCode, pConfig->RequiredSize, "\xFF");
 			CreateCorpusFile(pConfig->EscapeCode, pConfig->RequiredSize, "\x00");
@@ -98,7 +108,7 @@ void ProcessEscapeConfig(EscapeSpecificConfig* pConfig)
 
 void ProcessEscapeTableConfig(EscapeTableConfig* pEscapeTable)
 {
-	if(!pEscapeTable)
+	if (!pEscapeTable)
 	{
 		return;
 	}
@@ -181,7 +191,7 @@ int main(int argc, char* argv[])
 		Global::uDriverRdataSize,
 		"01 00 00 00 2a 2a 56 4e ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 02 00 00 00 58 44 56 4e"));
 
-	if(!EscapeConfig)
+	if (!EscapeConfig)
 	{
 		PrintLog("Failed to find the EscapeConfig pattern, you probably will have to reverse this yourself in your version of nvlddmkm.sys");
 		return 1;
